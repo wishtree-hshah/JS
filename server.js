@@ -6,8 +6,6 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 3000;
-
 // ---------- Dummy data ----------
 const customers = [
   { id: "123", name: "Alice Johnson" },
@@ -70,92 +68,33 @@ const orders = {
   ]
 };
 
-// // ---------- Helpers ----------
-// const findCustomerByName = (name) =>
-//   customers.find((c) => c.name.toLowerCase() === String(name || "").toLowerCase());
+// ---------- Helpers ----------
+const findCustomerByName = (name) =>
+  customers.find((c) => c.name.toLowerCase() === String(name || "").toLowerCase());
 
-// const findProductById = (id) => stock.find((p) => p.stockId.toLowerCase() === String(id || "").toLowerCase());
+const findProductById = (id) => stock.find((p) => p.stockId.toLowerCase() === String(id || "").toLowerCase());
 
-// const findProductByName = (name) =>
-//   stock.find((p) => p.productName.toLowerCase() === String(name || "").toLowerCase());
+const findProductByName = (name) =>
+  stock.find((p) => p.productName.toLowerCase() === String(name || "").toLowerCase());
 
-// // ---------- 1) Login by name ----------
-// app.post("/auth/login-by-name", (req, res) => {
-//   const { name } = req.body || {};
-//   if (!name) return res.status(400).json({ error: "Name is required" });
-
-//   const customer = findCustomerByName(name);
-//   if (!customer) return res.status(404).json({ error: "Customer not found" });
-
-//   console.log("customer login: ", customer.name);
-//   return res.json({
-//     customerId: customer.id,
-//     name: customer.name,
-//     message: `Welcome back ${customer.name}!`,
-//   });
-// });
-
-// // ---------- 2) Fetch previous orders ----------
-// app.get("/customers/:customerId/orders", (req, res) => {
-//   const { customerId } = req.params;
-//   const customerOrders = orders[customerId] || [];
-//   console.log("customer orders: ", customerOrders);
-//   return res.json({
-//     orders: customerOrders,
-//     lastOrder: customerOrders.length ? customerOrders[customerOrders.length - 1] : null,
-//   });
-// });
-
-// // ---------- 3) Place order (by stockId OR productName) ----------
-// app.post("/orders", (req, res) => {
-//   const { customerId, stockId, productName, quantity } = req.body || {};
-
-//   if (!customerId) return res.status(400).json({ error: "customerId is required" });
-//   if (!quantity || Number(quantity) <= 0) return res.status(400).json({ error: "quantity must be a positive number" });
-
-//   let product = null;
-//   if (stockId) product = findProductById(stockId);
-//   if (!product && productName) product = findProductByName(productName);
-//   if (!product) return res.status(404).json({ error: "Product not found in stock by given id/name" });
-
-//   const newOrder = {
-//     orderId: `ORD${Math.floor(Math.random() * 100000)}`,
-//     stockId: product.stockId,
-//     productName: product.productName,
-//     quantity: Number(quantity),
-//     orderDate: new Date().toISOString(),
-//   };
-
-//   if (!orders[customerId]) orders[customerId] = [];
-//   orders[customerId].push(newOrder);
-//   console.log("new order: ", newOrder);
-
-//   return res.status(201).json({
-//     confirmationId: `CONFIRM-${Math.floor(Math.random() * 100000)}`,
-//     status: "confirmed",
-//     order: newOrder,
-//   });
-// });
-
-// // ---------- 4) (Optional) List stock for discovery ----------
-// app.get("/stock", (req, res) => res.json({ stock }));
-// ---- 1. Login by Name ----
+// ---------- 1) Login by name ----------
 app.post("/auth/login-by-name", (req, res) => {
-  const { name } = req.body;
-  const customer = customers.find(c => c.name.toLowerCase() === name.toLowerCase());
+  const { name } = req.body || {};
+  if (!name) return res.status(400).json({ error: "Name is required" });
 
-  if (!customer) {
-    return res.status(404).json({ error: "Customer not found" });
-  }
+  const customer = findCustomerByName(name);
+  if (!customer) return res.status(404).json({ error: "Customer not found" });
 
-  // Return dummy session token
+  console.log("customer login: ", customer.name);
   return res.json({
     customerId: customer.id,
+    name: customer.name,
+    message: `Welcome back ${customer.name}!`,
     sessionToken: `token-${customer.id}-${Date.now()}`
   });
 });
 
-// ---- 2. Fetch Previous Orders ----
+// ---------- 2) Fetch previous orders ----------
 app.get("/customers/:customerId/orders", (req, res) => {
   const { customerId } = req.params;
   const authHeader = req.headers["authorization"];
@@ -163,46 +102,56 @@ app.get("/customers/:customerId/orders", (req, res) => {
   if (!authHeader || !authHeader.startsWith("Bearer")) {
     return res.status(401).json({ error: "Unauthorized. Missing Bearer token." });
   }
-
+  console.log("authHeader: ", authHeader);
   const customerOrders = orders[customerId] || [];
-  return res.json({ orders: customerOrders });
+  console.log("customer orders: ", customerOrders);
+  return res.json({
+    orders: customerOrders,
+    lastOrder: customerOrders.length ? customerOrders[customerOrders.length - 1] : null,
+  });
 });
 
-// ---- 3. Place Order ----
+// ---------- 3) Place order (by stockId OR productName) ----------
 app.post("/orders", (req, res) => {
-  const { customerId, productId } = req.body;
+  const { customerId, stockId, productName, quantity } = req.body || {};
   const authHeader = req.headers["authorization"];
 
   if (!authHeader || !authHeader.startsWith("Bearer")) {
     return res.status(401).json({ error: "Unauthorized. Missing Bearer token." });
   }
+  console.log("authHeader: ", authHeader);
 
-  const product = stock.find(p => p.productId === productId);
-  if (!product) {
-    return res.status(404).json({ error: "Product not found in stock" });
-  }
+  if (!customerId) return res.status(400).json({ error: "customerId is required" });
+  if (!quantity || Number(quantity) <= 0) return res.status(400).json({ error: "quantity must be a positive number" });
+
+  let product = null;
+  if (stockId) product = findProductById(stockId);
+  if (!product && productName) product = findProductByName(productName);
+  if (!product) return res.status(404).json({ error: "Product not found in stock by given id/name" });
 
   const newOrder = {
-    orderId: `ORD${Math.floor(Math.random() * 10000)}`,
-    productId,
+    orderId: `ORD${Math.floor(Math.random() * 100000)}`,
+    stockId: product.stockId,
     productName: product.productName,
-    orderDate: new Date().toISOString()
+    quantity: Number(quantity),
+    orderDate: new Date().toISOString(),
   };
 
-  if (!orders[customerId]) {
-    orders[customerId] = [];
-  }
+  if (!orders[customerId]) orders[customerId] = [];
   orders[customerId].push(newOrder);
+  console.log("new order: ", newOrder);
 
   return res.status(201).json({
     confirmationId: `CONFIRM-${Math.floor(Math.random() * 100000)}`,
     status: "confirmed",
-    order: newOrder
+    order: newOrder,
   });
 });
 
+// ---------- 4) (Optional) List stock for discovery ----------
+app.get("/stock", (req, res) => res.json({ stock }));
 
 // ---------- Start server ----------
 app.listen(PORT, () => {
-  console.log(`🚀 Open E-commerce API running on port ${PORT}`);
+  console.log(`🚀 Open E-commerce API running on http://localhost:${PORT}`);
 });
