@@ -6,6 +6,8 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+const PORT = process.env.PORT || 3000;
+
 // ---------- Dummy data ----------
 const customers = [
   { id: "123", name: "Alice Johnson" },
@@ -139,7 +141,6 @@ app.post("/orders", (req, res) => {
 app.get("/stock", (req, res) => res.json({ stock }));
 
 // ---------- Start server ----------
-const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Open E-commerce API running on http://localhost:${PORT}`);
+  console.log(`🚀 Open E-commerce API running on port ${PORT}`);
 });
