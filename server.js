@@ -1,12 +1,13 @@
+
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-
-const PORT = process.env.PORT || 3000;
 
 // ---------- Dummy data ----------
 const customers = [
@@ -152,6 +153,50 @@ app.post("/orders", (req, res) => {
 
 // ---------- 4) (Optional) List stock for discovery ----------
 app.get("/stock", (req, res) => res.json({ stock }));
+
+//----------------------------------
+
+
+app.get("/api/customers", async (req, res) => {
+  try {
+    const {
+      userName = "",
+      firstName = "",
+      customerId = "",
+      companyName = "",
+      city = "",
+      active = "userName",
+      direction = "asc",
+      pageSize = 25,
+      pageIndex = 0,
+      token = ""   // 👈 get token from query param
+    } = req.query;
+
+    if (!token) {
+      return res.status(401).json({ error: "Missing token in query params" });
+    }
+
+    // Build search query
+    const query = `type=inputSearch,userName=${userName},firstName=${firstName},customerId=${customerId},companyName=${companyName},city=${city}`;
+
+    const url = `https://staging-webstore.wishtree.tech/webstoreAPI/client/customer?active=${active}&direction=${direction}&pageSize=${pageSize}&pageIndex=${pageIndex}&query=${encodeURIComponent(query)}`;
+
+    const headers = {
+      "Accept": "application/json, text/plain, */*",
+      "Authorization": token   // 👈 forward token
+    };
+
+    const response = await fetch(url, { headers });
+    const data = await response.json();
+
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching customers:", err);
+    res.status(500).json({ error: "Failed to fetch customers" });
+  }
+});
+
+
 
 // ---------- Start server ----------
 app.listen(PORT, () => {
